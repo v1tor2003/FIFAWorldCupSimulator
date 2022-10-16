@@ -42,10 +42,46 @@ app.get('/simulate/table', async (request, response) => {
   response.send(teams)
 })
 
-app.get('/simulate/octaves', async (request, response) => {
+app.get('/setUp/octaves', async (request, response) => {
   teams = await setUpTeamsOctaves(teams)
   response.send(teams)
 })
+
+app.get('/simulate/octaves', async (request, response) => {
+  teams = await simulateOctavesMatchDays(teams)
+  response.send(teams)
+})
+
+app.get('/setUp/quarters', async (request, response) => {
+  teams = await setUpTeamsQuarters(teams)
+  response.send(teams)
+})
+
+app.get('/simulate/quarters', async (request, response) => {
+  teams = await simulateQuartersMatchDays(teams)
+  response.send(teams)
+})
+
+app.get('/setUp/semis', async (request, response) => {
+  teams = await setUpTeamsSemiFinals(teams)
+  response.send(teams)
+})
+
+app.get('/simulate/semis', async (request, response) => {
+  teams = await simulateSemiFinalsMatchDays(teams)
+  response.send(teams)
+})
+
+app.get('/setUp/finals', async (request, response) => {
+  teams = await setUpTeamsFinals(teams)
+  response.send(teams)
+})
+
+app.get('/simulate/finals', async (request, response) => {
+  teams = await simulateFinalMatchDay(teams[0])
+  response.send(teams)
+})
+
 
 function setUpTeamsTable(teams){
   let sortedArray = []
@@ -149,16 +185,16 @@ function resolveTableDraw(group){
 }
 
 function setUpTeamsOctaves(groups){
-  let count = 0, i = 0, j = 1
+  let groupsQuantity = 4,count = 0, i = 0, j = 1
   let octavesGroups = []
-// push the new groups to the octaves array
-  while(count < 4){
+  // takes 16 teams from setOctaves and put them into 4 groups
+  // push the new groups to the octaves array
+  while(count < groupsQuantity){
     octavesGroups.push(setOctaves(groups[i], groups[j]))
     i = j + 1
     j = i + 1
     count++
   }
-
   return octavesGroups
 }
 
@@ -166,7 +202,8 @@ function setOctaves(groupX, groupY){
   const startPosition = 0
   const elementsQntd = 1
   let newGroup = []
-  
+  // this func selects 4 team each time its been invoke
+  // the func runs 4 times resulting in 16 teams to be distributed by setUpTeamsOctaves(groups)
   newGroup.push(groupX.splice(startPosition, elementsQntd)[0])
   newGroup.push(groupX.splice(startPosition, elementsQntd)[0])
 
@@ -176,13 +213,87 @@ function setOctaves(groupX, groupY){
   return newGroup
 }
 
+function simulateOctavesMatchDays(octavesGroups){ 
+  const stage = "octaves"
+  const firstGroup = 0
+  const secondGroup = 1
+  const thirdGroup = 2
+  const fourthGroup = 3
+
+  getQualifiedsTeams(octavesGroups[firstGroup], octavesGroups[secondGroup], stage)
+  getQualifiedsTeams(octavesGroups[thirdGroup], octavesGroups[fourthGroup], stage) 
+ 
+  return octavesGroups
+}
+
+function setUpTeamsQuarters(teams){
+  const firstGroup = 0
+  const secondGroup = 1
+  const thirdGroup = 2
+  const fourthGroup = 3
+  let newGroup = []
+  newGroup.push(getTeamsForNextStage(teams[firstGroup], teams[secondGroup]))
+  newGroup.push(getTeamsForNextStage(teams[thirdGroup], teams[fourthGroup]))
+  return newGroup
+}
+
+function simulateQuartersMatchDays(quartersGroups){
+  const stage = "quarters"
+  const firstGroup = 0
+  const secondGroup = 1
+  
+  getQualifiedsTeams(quartersGroups[firstGroup], quartersGroups[secondGroup], stage)
+
+  return quartersGroups
+}
+
+function setUpTeamsSemiFinals(teams){
+  const firstGroup = 0
+  const secondGroup = 1
+  let newGroup = []
+  newGroup.push(getTeamsForNextStage(teams[firstGroup], teams[secondGroup]))
+  return newGroup
+}
+
+function simulateSemiFinalsMatchDays(semiFinalsGroups){
+  const stage = "semiFinals"
+  const firstGroup = 0
+ 
+  getQualifiedsTeams(semiFinalsGroups[firstGroup], null, stage)
+
+  return semiFinalsGroups
+}
+
+function setUpTeamsFinals(teams){
+  const firstGroup = 0
+  let newGroup = []
+  newGroup.push(getTeamsForNextStage(teams[firstGroup], null))
+  return newGroup
+}
+
+function simulateFinalMatchDay(finalGroup){
+  const phase = "qualifiers"
+  let winner
+
+  simulateMatch(finalGroup[0], finalGroup[1], phase)
+  
+  if(finalGroup[0].Qualified)
+    winner = finalGroup[0]
+  else
+    winner = finalGroup[1]
+
+  console.log("The team ", winner.Name, " is the winner")
+  return finalGroup
+}
+
 function simulateMatch(teamHome, teamAway, phase){
   const goalsLimit = 10
   const winnerPontuation = 3
   const drawPontuation = 1
-  console.log(teamHome, teamAway)
+
   let matchGoalsHome = parseInt(Math.random() * goalsLimit)
   let matchGoalsAway = parseInt(Math.random() * goalsLimit)
+
   switch(phase){
     case 'table':
       if(matchGoalsHome < matchGoalsAway){
@@ -242,13 +353,34 @@ function simulatePenalties(teamHome, teamAway){
   }
 }
 
-function getQualifiedsTeams(resultantArray, groupX, groupY, stage){
-  let newGroup = []
+function getTeamsForNextStage(groupX, groupY){
+  let teamsQuantity = groupX.length
+  let tempGroup = []
+
+  for(let i = 0; i < teamsQuantity; i++){
+    if(groupX[i].Qualified){
+      tempGroup.push(groupX[i])
+    }
+  }
+
+  if(groupY){
+    for(let i = 0; i < teamsQuantity; i++){
+      if(groupY[i].Qualified){
+        tempGroup.push(groupY[i])
+      }
+    }
+  }
+
+  return tempGroup
+}
+
+function getQualifiedsTeams(groupX, groupY, stage){
+  //let newGroup = []
   const phase = "qualifiers"
   
   let firstX, secondX, firstY, secondY
 
-  if(stage === "toQuarters"){
+  if(stage === "octaves"){
     firstX = 0
     secondX = 1
     firstY = 2
@@ -259,7 +391,7 @@ function getQualifiedsTeams(resultantArray, groupX, groupY, stage){
   
     simulateMatch(groupY[firstX], groupY[secondY], phase)
     simulateMatch(groupY[firstY], groupY[secondX], phase)
-  }else if (stage === "toSemiFinal"){
+  }else if (stage === "quarters"){
     firstX = 0
     secondX = 1
     firstY = 3
@@ -270,7 +402,7 @@ function getQualifiedsTeams(resultantArray, groupX, groupY, stage){
   
     simulateMatch(groupY[firstX], groupY[secondY], phase)
     simulateMatch(groupY[firstY], groupY[secondX], phase)
-  }else if(stage === "toFinal"){
+  }else if(stage === "semiFinals"){
     firstX = 0
     secondX = 1
     firstY = 2
@@ -279,24 +411,6 @@ function getQualifiedsTeams(resultantArray, groupX, groupY, stage){
     simulateMatch(groupX[firstX], groupX[secondX], phase)
     simulateMatch(groupX[firstY], groupX[secondY], phase)
   }
-
-  
-  let teamsQuantity = groupX.length
-
-  for(let i = 0; i < teamsQuantity; i++){
-    if(groupX[i].Qualified){
-      newGroup.push(groupX[i])
-    }
-  }
-
-  if(groupY){
-    for(let i = 0; i < teamsQuantity; i++){
-      if(groupY[i].Qualified){
-        newGroup.push(groupY[i])
-      }
-    }
-  }
-  resultantArray.push(newGroup)
-   
+  //getTeamForNextSTage will run in the next setUpStage func
 }
 

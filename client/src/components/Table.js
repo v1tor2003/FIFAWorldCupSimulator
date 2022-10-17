@@ -2,24 +2,21 @@ import React, {useState} from "react";
 import axios from 'axios'
 
 export const Table = ({backend}) => {
-  
-  const GET_TEAMS = '/start'
-  const [teams, setTeams] = useState([])
-  const [btnText, setBtnText] = useState(0)
-  
-  const btnTexts = ['Start Simulation', 
-                    'Simulate Phase of Groups', 
-                    'Simulate Octaves', 
-                    'Simulate Quarters', 
-                    'Simulate Semi-Finals', 
-                    'Simulate Final']
 
+  const [teams, setTeams] = useState([])
+  const [endPoint, setEndPoint] = useState(0)
+  const texts = ['/', '/simulate/table', '/setUp/octaves'
+                , '/simulate/octaves', '/setUp/quarters'
+                , '/simulate/quarters', '/setUp/semis'
+                , '/simulate/semis', '/setUp/finals'
+                , '/simulate/finals']
+ 
   const getTeams = () => {
-    axios.get(backend + GET_TEAMS).then(
+    axios.get(backend + texts[endPoint]).then(
       (response) => {
         console.log(response.data)
-        setBtnText(btnText + 1)
         setTeams(response.data)
+        setEndPoint(endPoint + 1)
       }
     ).catch(
       (error) => {
@@ -29,8 +26,17 @@ export const Table = ({backend}) => {
   }
 
   return (
-    <div>
-      <button onClick={getTeams}>{btnTexts[btnText]}</button>
-    </div>
+   <React.Fragment>
+    <button onClick={getTeams}>Simulate</button>
+    <ul>
+      {teams.map(team => {
+        return (
+          <li key={team.Name}>
+            {team.Qualified ? <p style={{color: "green"}}>Team: {team.Name}, Last Match: Win ({team.ScoredGoals} x {team.SufferedGoals})</p> : <p style={{color: "red"}}>Team: {team.Name}, Last Match: Loss ({team.ScoredGoals} x {team.SufferedGoals})</p>}
+          </li>
+          )
+      })}
+    </ul>
+    </React.Fragment>
   )
 }

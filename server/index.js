@@ -1,13 +1,15 @@
-const axios = require('axios')
-const cors = require('cors') 
-const express = require('express')
+import fetch from 'node-fetch'
+import axios from 'axios'
+import cors from 'cors'
+import express, { response } from 'express'
+
 
 const PORT = 5000
 const gitUser = 'v1tor2003'
 const FRONT_END_URL = 'http://localhost:3000'
-const EXTERNAL_API_URL = 'https://estagio.geopostenergy.com/WorldCup/GetAllTeams'
+const INPUT_API_URL = 'https://estagio.geopostenergy.com/WorldCup/GetAllTeams'
+const OUTPUT_API_URL = 'https://estagio.geopostenergy.com/WorldCup/InsertFinalResult'
 
-//const sortedArray = []
 let teams
 
 const app = express() 
@@ -17,13 +19,13 @@ app.use(
   })
 )
 
-axios.get(EXTERNAL_API_URL, {
+axios.get(INPUT_API_URL, {
   headers: {
     'git-user': gitUser
   }
 }).then((result) => {
   teams = result.data.Result
-  console.log(teams)
+  //console.log(teams)
 }).catch((error) => {
   console.log(error)
 })
@@ -32,56 +34,94 @@ app.listen(PORT, () => {console.log(`sever is live on port ${PORT}`)})
 
 app.get('/', async (request, response) => {
   teams = await setUpTeamsTable(teams)
-  response.send(teams)
 
+  response.send(teams)
 })
 
 app.get('/simulate/table', async (request, response) => {
   teams = await divideGroups(teams)
   await simulateGroupsTableMatchDays(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+  
+  response.send(result)
 })
 
 app.get('/setUp/octaves', async (request, response) => {
   teams = await setUpTeamsOctaves(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+
+  response.send(result)
 })
 
 app.get('/simulate/octaves', async (request, response) => {
   teams = await simulateOctavesMatchDays(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+
+  response.send(result)
 })
 
 app.get('/setUp/quarters', async (request, response) => {
   teams = await setUpTeamsQuarters(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+
+  response.send(result)
 })
 
 app.get('/simulate/quarters', async (request, response) => {
   teams = await simulateQuartersMatchDays(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+
+  response.send(result)
 })
 
 app.get('/setUp/semis', async (request, response) => {
   teams = await setUpTeamsSemiFinals(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+
+  response.send(result)
 })
 
 app.get('/simulate/semis', async (request, response) => {
   teams = await simulateSemiFinalsMatchDays(teams)
-  response.send(teams)
+  let result = await beautifyResult(teams)
+
+  response.send(result)
 })
 
 app.get('/setUp/finals', async (request, response) => {
   teams = await setUpTeamsFinals(teams)
-  response.send(teams)
+  let result = await JSON.stringify( beautifyResult(teams))
+
+  response.send(result)
 })
 
 app.get('/simulate/finals', async (request, response) => {
   teams = await simulateFinalMatchDay(teams[0])
+  const finalResult = await getFinalResult(teams)
+  sendResult(finalResult)
+
   response.send(teams)
 })
 
+function sendResult(finalResult){
+  axios.post(OUTPUT_API_URL, finalResult, {headers: {'git-user': gitUser}}).then((response) => console.log(response)).catch((error)=>console.log(error))
+}
+
+function beautifyResult(group){
+  let temp = []
+  let size = group.length
+  let i =  0
+  while(i < size){
+      subsLevel(temp, group[i])
+      i++
+  }
+  return temp
+}
+function subsLevel(result, teams) {
+  for(let i = 0; i < teams.length; i++){
+     result.push(teams[i])
+  }
+}
 
 function setUpTeamsTable(teams){
   let sortedArray = []
@@ -284,6 +324,20 @@ function simulateFinalMatchDay(finalGroup){
 
   console.log("The team ", winner.Name, " is the winner")
   return finalGroup
+}
+
+function getFinalResult(finalGroup){
+  
+  let finalResult = {
+    equipeA: finalGroup[0].Token,
+    equipeB: finalGroup[1].Token,
+    golsEquipeA: finalGroup[0].ScoredGoals,
+    golsEquipeB: finalGroup[1].ScoredGoals,
+    golsPenaltyTimeA: finalGroup[0].Penalties,
+    golsPenaltyTimeB: finalGroup[1].Penalties
+  }
+
+  return finalResult
 }
 
 function simulateMatch(teamHome, teamAway, phase){
